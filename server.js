@@ -66,18 +66,21 @@ function spawnBot(roomCode) {
 
 io.on('connection', (socket) => {
     
-    // Odaya Katılma İşlemi
+// Odaya Katılma İşlemi
     socket.on('joinRoom', ({ username, color, hat, roomCode, flag }) => {
-        socket.join(roomCode);
-        socket.roomCode = roomCode;
+        // Eğer oda kodu boşsa varsayılan 'main' yap
+        const currentRoom = roomCode || 'main'; 
+        
+        socket.join(currentRoom);
+        socket.roomCode = currentRoom;
 
         // Oda yoksa ilk defa oluştur
-        if (!rooms[roomCode]) {
-            rooms[roomCode] = { players: {}, foods: [], powerups: [] };
+        if (!rooms[currentRoom]) {
+            rooms[currentRoom] = { players: {}, foods: [], powerups: [] };
             
             // Başlangıç yemlerini oluştur (Lag'ı önlemek için 150 ideal sayı)
             for (let i = 0; i < 150; i++) {
-                rooms[roomCode].foods.push({ 
+                rooms[currentRoom].foods.push({ 
                     id: Math.random(), 
                     x: Math.random() * 3000, 
                     y: Math.random() * 3000, 
@@ -85,13 +88,21 @@ io.on('connection', (socket) => {
                     color: `hsl(${Math.random() * 360}, 100%, 60%)` 
                 });
             }
-            // Başlangıç botlarını ve güçlendirmelerini oluştur
-            for (let i = 0; i < 5; i++) spawnBot(roomCode);
-            for (let i = 0; i < 3; i++) spawnPowerUp(roomCode);
+
+            // --- BOT KONTROLÜ ---
+            // Sadece genel odalarda (main, global, 1) bot doğsun.
+            // 'ahmet123' gibi özel oda girildiyse BOT DOĞMAZ!
+            const isPublicRoom = ['main', 'global', '1'].includes(currentRoom.toLowerCase());
+
+            if (isPublicRoom) {
+                for (let i = 0; i < 5; i++) spawnBot(currentRoom);
+            }
+
+            for (let i = 0; i < 3; i++) spawnPowerUp(currentRoom);
         }
 
         // Oyuncuyu odaya kaydet
-        rooms[roomCode].players[socket.id] = {
+        rooms[currentRoom].players[socket.id] = {
             id: socket.id, 
             name: username || 'Oyuncu', 
             color: color || '#00ffcc', 
@@ -113,9 +124,9 @@ io.on('connection', (socket) => {
         // Oyuncuya oyun verilerini gönder
         socket.emit('initGame', { 
             id: socket.id, 
-            roomCode: roomCode, 
-            foods: rooms[roomCode].foods, 
-            powerups: rooms[roomCode].powerups 
+            roomCode: currentRoom, 
+            foods: rooms[currentRoom].foods, 
+            powerups: rooms[currentRoom].powerups 
         });
     });
 
