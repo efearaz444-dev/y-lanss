@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Slither ULTRA Multiplayer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background-color: #030305; font-family: 'Outfit', 'Segoe UI', Roboto, sans-serif; }
+        canvas { display: block; }
+        
+        /* HUD & Oyun İçi Arayüz */
+        #hud { 
+            position: absolute; top: 25px; left: 25px; color: #fff; font-size: 22px; font-weight: 800; 
+            pointer-events: none; text-shadow: 0 0 12px rgba(0,255,204,0.8); display: none; z-index: 5; 
+            background: rgba(5, 5, 12, 0.6); padding: 10px 20px; border-radius: 12px;
+            border: 1px solid rgba(0, 255, 204, 0.3); backdrop-filter: blur(8px);
+        }
+        #room-tag { 
+            position: absolute; bottom: 25px; left: 25px; color: #00ffcc; font-size: 14px; font-weight: 700;
+            background: rgba(5, 5, 12, 0.7); padding: 10px 18px; border-radius: 12px; 
+            border: 1px solid rgba(0, 255, 204, 0.4); display: none; box-shadow: 0 0 20px rgba(0,255,200,0.25); z-index: 5; 
+            backdrop-filter: blur(8px);
+        }
+
+        /* Hızlı Sohbet & Emote Menüsü */
+/* SOHBET BUTONLARI (SAĞ ALT KÖŞE) */
+#chat-menu {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    gap: 8px;
+    z-index: 100;
+}
+
+.chat-btn {
+    background: rgba(10, 10, 20, 0.85);
+    border: 1px solid #00ffcc;
+    color: #fff;
+    padding: 6px 10px;
+    font-size: 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 0 10px rgba(0, 255, 204, 0.2);
+}
+
+.chat-btn:hover {
+    background: #00ffcc;
+    color: #000;
+    transform: scale(1.08);
+}
+
+        /* Animasyonlar */
+        @keyframes bgGlow { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+        @keyframes pulseGlow { 
+            0% { box-shadow: 0 0 15px rgba(0,255,204,0.4), inset 0 0 10px rgba(0,255,204,0.2); } 
+            50% { box-shadow: 0 0 35px rgba(0,255,204,0.8), inset 0 0 20px rgba(0,255,204,0.4); } 
+            100% { box-shadow: 0 0 15px rgba(0,255,204,0.4), inset 0 0 10px rgba(0,255,204,0.2); } 
+        }
+
+        /* Ana Ekran Overlay */
+        .overlay-screen { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: radial-gradient(circle at center, rgba(15, 18, 35, 0.85), rgba(3, 3, 5, 0.98)); 
+            display: flex; justify-content: center; align-items: center; z-index: 10;
+            animation: bgGlow 20s linear infinite;
+        }
+
+        /* Neon Glassmorphism Kart Tasarımı */
+        .card { 
+            background: rgba(18, 20, 38, 0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 35px; border-radius: 24px; text-align: center; max-width: 480px; width: 92%; 
+            border: 1px solid rgba(0, 255, 204, 0.25); border-top: 1px solid rgba(255,255,255,0.4);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(255,255,255,0.03); 
+            animation: float 5s ease-in-out infinite;
+        }
+
+        .card h1 { 
+            font-size: 34px; 
+            margin-bottom: 22px; 
+            font-weight: 900;
+            text-transform: uppercase; 
+            letter-spacing: 3px; 
+            background: linear-gradient(135deg, #ffffff 30%, #00ffcc 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            filter: drop-shadow(0 0 12px rgba(0, 255, 204, 0.5));
+        }
+
+        .card input { 
+            width: 100%; padding: 14px; border-radius: 12px; border: 1px solid rgba(0, 255, 204, 0.2); 
+            background: rgba(8, 9, 18, 0.7); color: #00ffcc; font-size: 16px; font-weight: 600; 
+            outline: none; margin-bottom: 14px; text-align: center; transition: all 0.3s ease;
+        }
+        .card input:focus { 
+            border-color: #00ffcc; box-shadow: 0 0 15px rgba(0, 255, 204, 0.4); 
+            background: rgba(12, 14, 28, 0.9);
+        }
+
+        /* Play Butonu Genel Stili (Sende yoksa ekle) */
+        .play-btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 14px;
+            border: none;
+            color: #fff;
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 0 5px 25px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .play-btn:hover {
+            transform: scale(1.02) translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 255, 204, 0.4);
+        }
+
+        /* Seçim Etiketleri ve Grupları */
+        .selector-label { 
+            color: rgba(255,255,255,0.75); font-size: 13px; font-weight: 700; 
+            margin: 12px 0 6px 0; text-align: left; text-transform: uppercase; letter-spacing: 1px; 
+        }
+
+        .color-picker, .hat-picker, .flag-picker { 
+            display: flex; justify-content: center; gap: 8px; margin-bottom: 15px; flex-wrap: wrap; 
+        }
+
+        .color-btn, .hat-btn, .flag-btn { 
+            width: 38px; height: 38px; border-radius: 12px; cursor: pointer; 
+            border: 2px solid rgba(255,255,255,0.15); transition: all 0.25s ease; 
+            display: flex; align-items: center; justify-content: center; 
+            color: #fff; font-size: 16px; background: rgba(255,255,255,0.05); 
+        }
+        
+        .flag-btn {
+            width: auto; padding: 6px 12px; font-size: 14px; font-weight: bold; gap: 5px;
+        }
+
+        .color-btn:hover, .hat-btn:hover, .flag-btn:hover { 
+            transform: translateY(-2px); border-color: rgba(0,255,204,0.5); 
+        }
+
+        .selected { 
+            border-color: #00ffcc !important; transform: scale(1.15) !important; 
+            box-shadow: 0 0 18px #00ffcc !important; background: rgba(0, 255, 204, 0.2) !important; 
+        }
+
+        .play-btn { 
+            width: 100%; padding: 16px; margin-top: 10px;
+            background: linear-gradient(90deg, #00ffcc, #0099ff, #00ffcc); 
+            background-size: 200% auto; border: none; border-radius: 14px; color: #030305; 
+            font-size: 19px; font-weight: 900; cursor: pointer; transition: 0.4s ease; 
+            animation: pulseGlow 2.5s infinite; text-transform: uppercase; letter-spacing: 1.5px;
+        }
+        .play-btn:hover { 
+            background-position: right center; transform: translateY(-2px) scale(1.02); 
+            box-shadow: 0 10px 30px rgba(0, 255, 204, 0.7); 
+        }
+
+        #game-over-screen { display: none; }
+        #game-over-screen h1 { 
+            background: linear-gradient(135deg, #ff3366, #ff6699);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            color: transparent;
+            filter: drop-shadow(0 0 15px rgba(255, 51, 102, 0.6));
+        }
+        .stat-grid { 
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; 
+            color: #fff; margin: 20px 0; font-size: 14px; 
+        }
+        .stat-box { 
+            background: rgba(8, 9, 18, 0.6); padding: 12px; border-radius: 12px; 
+            border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(5px);
+        }
+        .stat-box span { display: block; font-size: 18px; font-weight: 800; color: #00ffcc; margin-top: 4px; }
+    </style>
+</head>
+<body>
+
+    <div id="hud">⚡ Skor: <span id="score-val">0</span> | Lvl <span id="level-val" style="color:#ffcc00;">1</span>: <span id="title-val" style="color:#00ffcc;">🌱 Çaylak Solucan</span></div>
+    <div id="room-tag">🌐 Oda: <span id="current-room-code">GLOBAL</span></div>
+
+<!-- Emote / Mesaj Butonları -->
+<div class="emote-container">
+<button class="emote-btn" onclick="sendEmote('🔥')">🔥</button>
+<button class="emote-btn" onclick="sendEmote('👑')">👑</button>
+<button class="emote-btn" onclick="sendEmote('SA')">SA</button>
+<button class="emote-btn" onclick="sendEmote('GG')">GG</button>
+</div>
+
+    <!-- Giriş Ekranı -->
+    <div id="start-screen" class="overlay-screen">
+        <div class="card">
+            <h1>YILANSS GAME</h1>
+            <input type="text" id="username" placeholder="Savaşçı Adın" maxlength="12" value="Oyuncu">
+            <input type="text" id="room-input" placeholder="Gizli Oda Kodu (Boş=Global)" maxlength="10">
+            
+            <div class="selector-label">Rengini Seç:</div>
+            <div class="color-picker" id="color-picker"></div>
+
+            <div class="selector-label">Aksesuar / Şapka Seç:</div>
+            <div class="hat-picker" id="hat-picker">
+                <div class="hat-btn selected" data-hat="none">🚫</div>
+                <div class="hat-btn" data-hat="crown">👑</div>
+                <div class="hat-btn" data-hat="headphones">🎧</div>
+                <div class="hat-btn" data-hat="cap">🧢</div>
+                <div class="hat-btn" data-hat="horns">😈</div>
+            </div>
+
+            <div class="selector-label">Ülke Bayrağı Seç:</div>
+            <div id="flag-picker" class="flag-picker">
+                <div class="flag-btn selected" data-flag="🇹🇷">🇹🇷 TR</div>
+                <div class="flag-btn" data-flag="🇫🇷">🇫🇷 FR</div>
+                <div class="flag-btn" data-flag="🇮🇹">🇮🇹 IT</div>
+                <div class="flag-btn" data-flag="🇮🇱">🇮🇱 IL</div>
+                <div class="flag-btn" data-flag="none">🚫 Yok</div>
+            </div>
+
+            <button class="play-btn" id="start-btn">SAVAŞA KATIL</button>
+        </div>
+    </div>
+
+<!-- Ölüm Ekranı -->
+    <div id="game-over-screen" class="overlay-screen">
+        <div class="card" style="animation: none;">
+            <h1>PARÇALANDIN!</h1>
+            
+            <div class="stat-grid">
+                <div class="stat-box">Skor: <br><b id="final-score" style="color:#00ffcc; font-size:18px;">0</b></div>
+                <div class="stat-box">Kesilen Yılan: <br><b id="final-kills" style="color:#ff3366; font-size:18px;">0</b></div>
+                <div class="stat-box">Yenen Yem: <br><b id="final-food" style="color:#ffcc00; font-size:18px;">0</b></div>
+                <div class="stat-box">Kazanılan Altın: <br><b id="final-gold" style="color:#33ff33; font-size:18px;">0 🪙</b></div>
+            </div>
+
+            <!-- BUTON GRUBU BURAYA EKLENDİ -->
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <button class="play-btn" id="restart-btn" style="flex: 1; background: linear-gradient(90deg, #ff3366, #ff9900);">YENİDEN DOĞ</button>
+                <button class="play-btn" onclick="goToMainMenu()" style="flex: 1; background: linear-gradient(90deg, #6a11cb, #2575fc);">MENÜYE DÖN</button>
+            </div>
+
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>
