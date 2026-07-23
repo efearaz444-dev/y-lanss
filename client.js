@@ -223,6 +223,16 @@ socket.on('initGame', (data) => {
     powerups = data.powerups || [];
 });
 
+socket.on('youDied', () => {
+    // Oyuncu öldüğünde frontend nesnelerini tamamen temizle
+    if (typeof mySnake !== 'undefined') mySnake = null;
+    isAlive = false;
+    
+    // Oyun bitti menüsünü ekrana getir
+    const gameOverScreen = document.getElementById('gameOverScreen');
+    if (gameOverScreen) gameOverScreen.style.display = 'block';
+});
+
 socket.on('updatePlayers', (serverPlayers) => {
     Object.keys(serverPlayers).forEach(id => {
         if (!players[id]) {

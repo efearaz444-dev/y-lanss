@@ -75,8 +75,8 @@ io.on('connection', (socket) => {
         if (!rooms[roomCode]) {
             rooms[roomCode] = { players: {}, foods: [], powerups: [] };
             
-            // Başlangıç yemlerini oluştur
-            for (let i = 0; i < 350; i++) {
+            // Başlangıç yemlerini oluştur (Lag'ı önlemek için 150 ideal sayı)
+            for (let i = 0; i < 150; i++) {
                 rooms[roomCode].foods.push({ 
                     id: Math.random(), 
                     x: Math.random() * 3000, 
@@ -86,15 +86,15 @@ io.on('connection', (socket) => {
                 });
             }
             // Başlangıç botlarını ve güçlendirmelerini oluştur
-            for (let i = 0; i < 8; i++) spawnBot(roomCode);
-            for (let i = 0; i < 5; i++) spawnPowerUp(roomCode);
+            for (let i = 0; i < 5; i++) spawnBot(roomCode);
+            for (let i = 0; i < 3; i++) spawnPowerUp(roomCode);
         }
 
         // Oyuncuyu odaya kaydet
         rooms[roomCode].players[socket.id] = {
             id: socket.id, 
             name: username || 'Oyuncu', 
-            color: color, 
+            color: color || '#00ffcc', 
             hat: hat || 'none',
             flag: flag || 'none',
             x: Math.random() * 2000 + 500, 
@@ -130,11 +130,9 @@ io.on('connection', (socket) => {
     socket.on('sendEmote', (emote) => {
         const room = rooms[socket.roomCode];
         if (room && room.players[socket.id]) {
-            // Hem sunucu nesnesine kaydet
             room.players[socket.id].emote = emote;
-            room.players[socket.id].emoteTimer = 90; // 3 saniye
+            room.players[socket.id].emoteTimer = 60; // ~3 saniye
 
-            // Hem de o an odada olan herkese yayınla
             io.to(socket.roomCode).emit('playerEmote', {
                 id: socket.id,
                 emote: emote
@@ -142,7 +140,7 @@ io.on('connection', (socket) => {
         }
     });
 
-    // Ölüm Sistemi
+    // Ölüm Sistemi (Sıfırlanmama & Kendi Yemini Yeme Bug'ı Çözüldü)
     socket.on('imDead', (killerId) => {
         const room = rooms[socket.roomCode];
         if (room && room.players[socket.id]) {
@@ -154,20 +152,28 @@ io.on('connection', (socket) => {
             }
 
             // Ölen yılanı yeme çevir
-            p.body.forEach((seg, i) => {
-                if (i % 2 === 0) {
-                    room.foods.push({ 
-                        id: Math.random(), 
-                        x: seg.x + (Math.random() * 10 - 5), 
-                        y: seg.y + (Math.random() * 10 - 5), 
-                        radius: 6, 
-                        color: p.color 
-                    });
-                }
-            });
+            if (p.body && p.body.length > 0) {
+                p.body.forEach((seg, i) => {
+                    if (i % 2 === 0) {
+                        room.foods.push({ 
+                            id: Math.random(), 
+                            x: seg.x + (Math.random() * 10 - 5), 
+                            y: seg.y + (Math.random() * 10 - 5), 
+                            radius: 6, 
+                            color: p.color 
+                        });
+                    }
+                });
+            }
             
+            // 1. Önce oyuncuyu sunucu hafızasından SIL
+            delete room.players[socket.id]; 
+
+            // 2. Haritadaki yeni yemleri HERKESE duyur
             io.to(socket.roomCode).emit('updateFoods', room.foods);
-            delete room.players[socket.id]; // Oyuncuyu sil
+
+            // 3. Ölen oyuncuya Özel Ölüm Sinyali Yolla (Frontend sıfırlasın)
+            socket.emit('youDied'); 
         }
     });
 
@@ -195,7 +201,7 @@ io.on('connection', (socket) => {
                     room.players[socket.id].eatenFoods = (room.players[socket.id].eatenFoods || 0) + 1;
                 }
                 
-                // Yenilen yemin yerine anında yenisini oluştur
+                // Yenilen yemin yerine yenisini oluştur
                 room.foods[idx] = { 
                     id: Math.random(), 
                     x: Math.random() * 3000, 
@@ -215,7 +221,6 @@ io.on('connection', (socket) => {
             room.powerups = room.powerups.filter(p => p.id !== pId);
             io.to(socket.roomCode).emit('updatePowerups', room.powerups);
             
-            // 10 Saniye sonra yeni powerup çıkar
             setTimeout(() => spawnPowerUp(socket.roomCode), 10000);
         }
     });
@@ -228,7 +233,7 @@ io.on('connection', (socket) => {
     });
 });
 
-// --- OYUN DÖNGÜSÜ VE BOT MANTIĞI (30 FPS) ---
+// --- OYUN DÖNGÜSÜ VE BOT MANTIĞI (20 FPS - AKICI & SIFIR LAG) ---
 
 setInterval(() => {
     Object.keys(rooms).forEach(roomCode => {
@@ -236,7 +241,7 @@ setInterval(() => {
         const playersList = Object.values(room.players);
         
         playersList.forEach(p => {
-            // Emote Silinme Kontrolü (Tüm Oyuncular İçin)
+            // Emote Silinme Kontrolü
             if (p.emoteTimer > 0) {
                 p.emoteTimer--;
                 if (p.emoteTimer <= 0) p.emote = null;
@@ -261,11 +266,9 @@ setInterval(() => {
                     if (otherPlayer.id !== p.id && otherPlayer.body && otherPlayer.body.length > 0) {
                         for (let i = 3; i < otherPlayer.body.length; i += 2) {
                             const seg = otherPlayer.body[i];
-                            // Bot başka yılana çarptı mı?
                             if (Math.hypot(p.x - seg.x, p.y - seg.y) < 16) {
                                 otherPlayer.kills = (otherPlayer.kills || 0) + 1;
                                 
-                                // Bot yeme dönüşsün
                                 p.body.forEach((bSeg, idx) => {
                                     if (idx % 2 === 0) {
                                         room.foods.push({
@@ -278,7 +281,7 @@ setInterval(() => {
                                 });
                                 
                                 delete room.players[p.id];
-                                spawnBot(roomCode); // Yeni bot çağır
+                                spawnBot(roomCode);
                                 io.to(roomCode).emit('updateFoods', room.foods);
                                 return;
                             }
@@ -295,7 +298,6 @@ setInterval(() => {
                             p.length += f.radius * 0.1;
                             room.foods.splice(index, 1);
                             
-                            // Yenen yemin yerine yenisini spawnla
                             room.foods.push({
                                 id: Math.random(),
                                 x: Math.random() * 2900 + 50,
@@ -312,7 +314,7 @@ setInterval(() => {
         // Her karede oyuncu verilerini odaya yayınla
         io.to(roomCode).emit('updatePlayers', room.players);
     });
-}, 1000 / 30);
+}, 1000 / 20);
 
 // --- SUNUCUYU BAŞLAT ---
 const PORT = process.env.PORT || 3000;
