@@ -23,6 +23,76 @@ const activePowerups = { magnet: 0, shield: 0, double: 0 };
 const mouse = { x: 0, y: 0 };
 let isBoosting = false;
 
+// ==========================================
+// --- MOBİL OPTİMİZASYON VE KONTROLLER ---
+// ==========================================
+
+const boostBtn = document.getElementById('mobileBoostBtn');
+
+// --- 1. DOKUNMATİK VE FARE AÇI HESABI ---
+function handlePointerMove(e) {
+    if (!myId || !players[myId] || isDead) return;
+
+    // Dokunmatik veya fare koordinatlarını al
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+    // Ekranın merkezine göre açıyı hesapla
+    const centerX = window.innerWidth / 2;
+    const centerY = window.innerHeight / 2;
+
+    const dx = clientX - centerX;
+    const dy = clientY - centerY;
+
+    // Yılanın hedeflenen açısı
+    const targetAngle = Math.atan2(dy, dx);
+    
+    // Global mouse koordinatlarını da güncelle
+    mouse.x = clientX;
+    mouse.y = clientY;
+
+    // Sunucuya yeni açıyı yolla
+    socket.emit('playerUpdate', { angle: targetAngle, isBoosting: isBoosting });
+}
+
+// Dokunma ve Hareket Dinleyicileri
+window.addEventListener('mousemove', handlePointerMove);
+window.addEventListener('touchmove', handlePointerMove, { passive: false });
+window.addEventListener('touchstart', (e) => {
+    // Boost butonuna basılmadıysa yönü güncelle
+    if (e.target !== boostBtn) handlePointerMove(e);
+}, { passive: false });
+
+// --- 2. MOBİL BOOST BUTONU KONTROLÜ ---
+if (boostBtn) {
+    boostBtn.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        isBoosting = true;
+        if (socket && myId) socket.emit('playerUpdate', { isBoosting: true });
+    });
+
+    boostBtn.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        isBoosting = false;
+        if (socket && myId) socket.emit('playerUpdate', { isBoosting: false });
+    });
+}
+
+// --- 3. MOBİL ÇÖZÜNÜRLÜK OPTİMİZASYONU (DPI REGULATION) ---
+function resizeCanvas() {
+    // Mobil cihazlarda kasma/lag olmaması için Pixel Ratio'yu 1.5 ile sınırla
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    
+    // Çizim ölçeğini ayarla
+    ctx.scale(dpr, dpr);
+}
+
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas(); // İlk yüklemede çalıştır
+
 // --- SES EFEKTLERİ ---
 let audioCtx = null;
 function initAudio() {

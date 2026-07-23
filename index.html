@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>YILANSS GAME</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
@@ -183,6 +183,58 @@
             border: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(5px);
         }
         .stat-box span { display: block; font-size: 18px; font-weight: 800; color: #00ffcc; margin-top: 4px; }
+
+        /* Mobilde kaydırma, yakınlaştırma ve metin seçimini engelle */
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    touch-action: none; /* Dokunmatik hareketleri kilitler */
+    user-select: none;
+    -webkit-user-select: none;
+    background-color: #0d0f17;
+}
+
+canvas {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+}
+
+/* Mobil Boost Butonu */
+#mobileBoostBtn {
+    display: none; /* Masaüstünde gizli */
+    position: absolute;
+    bottom: 30px;
+    right: 30px;
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+    background: rgba(255, 51, 102, 0.8);
+    border: 3px solid #fff;
+    color: white;
+    font-weight: bold;
+    font-family: sans-serif;
+    font-size: 14px;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+    box-shadow: 0 0 15px rgba(255, 51, 102, 0.5);
+}
+
+#mobileBoostBtn:active {
+    background: rgba(255, 51, 102, 1);
+    transform: scale(0.92);
+}
+
+/* Sadece mobil/dokunmatik cihazlarda göster */
+@media (pointer: coarse) {
+    #mobileBoostBtn {
+        display: flex;
+    }
+}
     </style>
 </head>
 <body>
@@ -229,6 +281,9 @@
             <button class="play-btn" id="start-btn">SAVAŞA KATIL</button>
         </div>
     </div>
+
+    <!-- Mobil Boost Butonu -->
+<div id="mobileBoostBtn">BOOST</div>
 
 <!-- Ölüm Ekranı -->
     <div id="game-over-screen" class="overlay-screen">
