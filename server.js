@@ -1,6 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 const app = express();
 const server = http.createServer(app);
@@ -12,7 +13,12 @@ const BOT_COLORS = ['#00ffcc', '#ff3366', '#ffcc00', '#33ff33', '#9933ff', '#ff9
 const POWERUP_TYPES = ['magnet', 'shield', '2x'];
 const rooms = {};
 
+// Statik dosyaları sun (HTML, CSS, JS) ve Ana Sayfa Yönlendirmesi
 app.use(express.static(__dirname));
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // --- YARDIMCI FONKSİYONLAR ---
 
@@ -310,4 +316,4 @@ setInterval(() => {
 
 // --- SUNUCUYU BAŞLAT ---
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => console.log(`🚀 ULTRA Sunucu http://localhost:${PORT} adresinde devrede!`));
+server.listen(PORT, () => console.log(`🚀 ULTRA Sunucu devrede! PORT: ${PORT}`));
