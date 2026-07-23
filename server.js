@@ -78,7 +78,7 @@ io.on('connection', (socket) => {
         if (!rooms[currentRoom]) {
             rooms[currentRoom] = { players: {}, foods: [], powerups: [] };
             
-            // Başlangıç yemlerini oluştur (Lag'ı önlemek için 150 ideal sayı)
+            // Başlangıç yemlerini oluştur (Lag'ı önlemek için 150 ideal)
             for (let i = 0; i < 150; i++) {
                 rooms[currentRoom].foods.push({ 
                     id: Math.random(), 
@@ -89,15 +89,9 @@ io.on('connection', (socket) => {
                 });
             }
 
-            // --- BOT KONTROLÜ ---
-            // Sadece genel odalarda (main, global, 1) bot doğsun.
-            // 'ahmet123' gibi özel oda girildiyse BOT DOĞMAZ!
-            const isPublicRoom = ['main', 'global', '1'].includes(currentRoom.toLowerCase());
+            // BOTLAR TAMAMEN KALDIRILDI! (Artık hiç bot doğmayacak)
 
-            if (isPublicRoom) {
-                for (let i = 0; i < 5; i++) spawnBot(currentRoom);
-            }
-
+            // Sadece güçlendirmeleri oluştur
             for (let i = 0; i < 3; i++) spawnPowerUp(currentRoom);
         }
 
